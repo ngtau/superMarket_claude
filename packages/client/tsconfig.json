@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "jsx": "react-jsx",
+    "outDir": "dist",
+    "rootDir": "src",
+    "baseUrl": ".",
+    "noEmit": false,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": false,
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": ["src", "src/i18n/locales/**/*.json"],
+  "references": [{ "path": "../shared" }]
+}

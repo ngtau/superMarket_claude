@@ -1,0 +1,9 @@
+{
+  "buildCommand": "pnpm --filter @app/shared build && pnpm --filter @app/client build",
+  "outputDirectory": "packages/client/dist",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

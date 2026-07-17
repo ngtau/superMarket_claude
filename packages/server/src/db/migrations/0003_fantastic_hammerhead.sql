@@ -1,0 +1,1 @@
+ALTER TABLE "product_specs" ADD COLUMN "weight_grams" integer DEFAULT 1000 NOT NULL;

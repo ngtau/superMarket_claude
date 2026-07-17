@@ -1,0 +1,7 @@
+{
+  "nav": { "home": "首頁", "category": "分類", "cart": "購物車", "orders": "我的訂單", "account": "我的帳戶" },
+  "action": { "addToCart": "加入購物車", "checkout": "結算", "confirm": "確認", "cancel": "取消", "submit": "提交" },
+  "order": {
+    "status": { "pending_payment": "待付款", "paid": "已付款", "shipped": "已發貨", "completed": "已完成", "cancelled": "已取消" }
+  }
+}

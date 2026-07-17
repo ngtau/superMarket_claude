@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: apcube_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      # R-CAV-3：turbo dependsOn ^build，shared先于client/server构建
+      - name: 构建（shared → server/client）
+        run: pnpm --filter @app/shared build && pnpm --filter @app/server build && pnpm --filter @app/client build
+
+      - name: 数据库迁移+种子（用于server集成测试，若后续补充）
+        working-directory: packages/server
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/apcube_ci
+        run: |
+          pnpm exec drizzle-kit generate
+          pnpm run db:migrate
+          pnpm run db:seed
+
+      - name: 单元测试（@app/shared + @app/server 纯逻辑）
+        run: pnpm --filter @app/shared test && pnpm --filter @app/server test
+
+      # TODO：Playwright E2E关键流（登录→下单→支付审核）待前端页面搭建完成后接入，
+      # 当前仅覆盖后端API + 单元测试，E2E需要真实可点击页面才有意义
+      - name: Playwright E2E（占位，前端页面就绪后启用）
+        run: echo "Playwright E2E待前端页面搭建完成后接入 playwright.config.ts + tests/e2e/"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run lint

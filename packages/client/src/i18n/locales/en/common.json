@@ -1,0 +1,7 @@
+{
+  "nav": { "home": "Home", "category": "Category", "cart": "Cart", "orders": "My Orders", "account": "My Account" },
+  "action": { "addToCart": "Add to Cart", "checkout": "Checkout", "confirm": "Confirm", "cancel": "Cancel", "submit": "Submit" },
+  "order": {
+    "status": { "pending_payment": "Pending Payment", "paid": "Paid", "shipped": "Shipped", "completed": "Completed", "cancelled": "Cancelled" }
+  }
+}

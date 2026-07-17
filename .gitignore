@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-admin
+.env
+.env.local
+*.tsbuildinfo
+.turbo
+packages/server/uploads/

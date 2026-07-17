@@ -1,0 +1,1 @@
+ALTER TABLE "platform_settings" ALTER COLUMN "value" DROP NOT NULL;
