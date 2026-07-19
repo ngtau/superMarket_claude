@@ -2,7 +2,7 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db, pool } from "./client.js";
-import { roles, permissions, rolePermissions, platformSettings, shippingTemplates, admins } from "./schema/index.js";
+import { roles, permissions, rolePermissions, platformSettings, shippingTemplates, admins, memberLevels } from "./schema/index.js";
 
 // §7.5 七角色矩阵（内置角色，isBuiltin=true，不可删除）
 const BUILTIN_ROLES = [
@@ -101,6 +101,18 @@ async function main() {
     const passwordHash = await bcrypt.hash(initialPassword, 10);
     await db.insert(admins).values({ username: initialUsername, passwordHash, roleId: superAdminRole.id }).onConflictDoNothing();
     console.log(`[seed] 初始管理员账号: ${initialUsername} / ${initialPassword}（⚠️生产环境务必首次登录后立即修改密码，或通过SEED_ADMIN_USERNAME/SEED_ADMIN_PASSWORD环境变量覆盖初始值）`);
+  }
+
+  console.log("[seed] 写入默认会员等级...");
+  const DEFAULT_MEMBER_LEVELS = [
+    { nameZh: "普通會員", nameEn: "Standard", sort: 1 },
+    { nameZh: "白銀會員", nameEn: "Silver", sort: 2 },
+    { nameZh: "黃金會員", nameEn: "Gold", sort: 3 },
+    { nameZh: "鉑金會員", nameEn: "Platinum", sort: 4 },
+  ];
+  for (const level of DEFAULT_MEMBER_LEVELS) {
+    const [existing] = await db.select().from(memberLevels).where(eq(memberLevels.nameZh, level.nameZh)).limit(1);
+    if (!existing) await db.insert(memberLevels).values(level);
   }
 
   console.log("[seed] 完成");

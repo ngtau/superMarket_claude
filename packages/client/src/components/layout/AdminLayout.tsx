@@ -1,7 +1,7 @@
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import {
-  LayoutDashboard, Package, ShoppingBag, Tag, Image, Users, Settings, LogOut,
+  LayoutDashboard, Package, ShoppingBag, Tag, Image, Users, CreditCard, Settings, LogOut,
 } from "lucide-react";
 import { useAdminAuthStore } from "@/store/admin-auth-store";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/admin/orders", label: "訂單管理", icon: ShoppingBag, permission: "order:manage" },
   { to: "/admin/marketing", label: "營銷管理", icon: Tag, permission: "marketing:manage" },
   { to: "/admin/content", label: "內容管理", icon: Image, permission: "marketing:manage" },
+  { to: "/admin/payment-methods", label: "支付管理", icon: CreditCard, permission: "payment:manage" },
   { to: "/admin/users", label: "用戶管理", icon: Users, permission: "user:manage" },
   { to: "/admin/settings", label: "系統設置", icon: Settings, permission: "system:manage" },
 ];

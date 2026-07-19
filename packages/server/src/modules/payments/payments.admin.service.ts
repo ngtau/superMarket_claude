@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { payments, orders, paymentMethods } from "../../db/schema/index.js";
 import { assertPaymentTransition, assertOrderTransition } from "../orders/order-state-machine.js";
-import { encrypt } from "../../common/crypto/aes.util.js";
+import { encrypt, decrypt } from "../../common/crypto/aes.util.js";
 
 @Injectable()
 export class PaymentsAdminService {
@@ -47,7 +47,24 @@ export class PaymentsAdminService {
   }
 
   findAllMethods() {
-    return db.select({ id: paymentMethods.id, enabled: paymentMethods.enabled, config: paymentMethods.config }).from(paymentMethods);
+    return db
+      .select({ id: paymentMethods.id, enabled: paymentMethods.enabled, config: paymentMethods.config, merchantInfoEncrypted: paymentMethods.merchantInfoEncrypted })
+      .from(paymentMethods)
+      .then((rows) => rows.map((r) => ({ id: r.id, enabled: r.enabled, config: r.config, hasMerchantInfo: !!r.merchantInfoEncrypted })));
+  }
+
+  /**
+   * 查看已配置的商户信息供编辑回填。银行转账收款信息本身就要展示给顾客（见payments.service.ts），
+   * 原样返回；其余渠道(FPS/PayMe/AlipayHK)字段名含key/secret/token的做部分脱敏，不完整回显敏感凭证。
+   */
+  async getMerchantInfo(id: string): Promise<Record<string, string> | null> {
+    const [row] = await db.select().from(paymentMethods).where(eq(paymentMethods.id, id)).limit(1);
+    if (!row?.merchantInfoEncrypted) return null;
+    const info = JSON.parse(decrypt(row.merchantInfoEncrypted)) as Record<string, string>;
+    if (id === "bank_transfer") return info;
+    return Object.fromEntries(
+      Object.entries(info).map(([k, v]) => [k, /key|secret|token/i.test(k) ? `${v.slice(0, 4)}${"•".repeat(Math.max(v.length - 4, 4))}` : v])
+    );
   }
 
   /** D11：商户信息落库前AES-256加密，接口不回显明文 */

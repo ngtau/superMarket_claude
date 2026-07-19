@@ -8,7 +8,8 @@ import { api } from "@/lib/api-client";
 import { formatCurrency } from "@app/shared";
 
 interface OrderDetail { id: string; orderNo: string; status: string; totalCents: number }
-interface PaymentStatus { status: string; method: string; amountCents: number }
+interface BankInfo { bankName: string; accountNo: string; accountName: string }
+interface PaymentStatus { status: string; method: string; amountCents: number; bankInfo?: BankInfo }
 
 export default function OrderPaymentPage() {
   const { id } = useParams<{ id: string }>();
@@ -50,8 +51,9 @@ export default function OrderPaymentPage() {
             <h2 className="font-display font-bold mb-2">{i18n.language === "zh-HK" ? "銀行轉賬資料" : "Bank Transfer Details"}</h2>
             <p className="text-sm text-muted-foreground">{i18n.language === "zh-HK" ? "請轉賬後上傳付款憑證截圖" : "Please transfer and upload a screenshot of your receipt"}</p>
             <div className="font-mono text-sm bg-paper-dim rounded p-3 space-y-1 mt-2">
-              <p>{i18n.language === "zh-HK" ? "銀行" : "Bank"}: TODO（後台配置後顯示）</p>
-              <p>{i18n.language === "zh-HK" ? "戶口" : "Account"}: TODO</p>
+              <p>{i18n.language === "zh-HK" ? "銀行" : "Bank"}: {payment.bankInfo?.bankName ?? "—"}</p>
+              <p>{i18n.language === "zh-HK" ? "戶口" : "Account"}: {payment.bankInfo?.accountNo ?? "—"}</p>
+              <p>{i18n.language === "zh-HK" ? "收款人" : "Account Name"}: {payment.bankInfo?.accountName ?? "—"}</p>
               <p>{i18n.language === "zh-HK" ? "金額" : "Amount"}: {formatCurrency(payment.amountCents)}</p>
             </div>
           </div>

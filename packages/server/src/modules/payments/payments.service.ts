@@ -3,9 +3,12 @@ import { eq, and } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { payments, orders } from "../../db/schema/index.js";
 import { assertPaymentTransition } from "../orders/order-state-machine.js";
+import { BankTransferProvider } from "../payment/bank-transfer.provider.js";
 
 @Injectable()
 export class PaymentsService {
+  constructor(private readonly bankTransferProvider: BankTransferProvider) {}
+
   private async getOwnedPayment(orderId: string, userId: string) {
     const [row] = await db
       .select({ payment: payments, order: orders })
@@ -18,9 +21,11 @@ export class PaymentsService {
     return row;
   }
 
+  /** ⚠️修复：此前前端付款页展示的银行信息是硬编码"TODO"占位，从未接入后台真实配置。现按需附加bankInfo。 */
   async getStatus(orderId: string, userId: string) {
     const { payment } = await this.getOwnedPayment(orderId, userId);
-    return { status: payment.status, method: payment.method, amountCents: payment.amountCents };
+    const bankInfo = payment.method === "bank_transfer" ? await this.bankTransferProvider.getBankInfo() : undefined;
+    return { status: payment.status, method: payment.method, amountCents: payment.amountCents, bankInfo };
   }
 
   /** 银行转账：上传凭证 → pending_review，等待后台人工审核（v1唯一完整实现的支付链路） */

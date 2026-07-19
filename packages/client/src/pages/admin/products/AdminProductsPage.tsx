@@ -3,19 +3,39 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { adminApi } from "@/lib/admin-api-client";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatCurrency } from "@app/shared";
-import { ProductFormDialog } from "./ProductFormDialog";
+import { ProductFormDialog, type EditingProduct } from "./ProductFormDialog";
+import { CategoriesTab } from "./CategoriesTab";
 
 interface AdminProduct {
-  id: string; nameZh: string; nameEn: string;
+  id: string; nameZh: string; nameEn: string; categoryId: string;
   priceOriginalCents: number; priceAfterCents: number; status: string;
+  images: string[]; descriptionZh: string | null; descriptionEn: string | null;
 }
 
 const STATUS_LABEL: Record<string, string> = { draft: "草稿", on_shelf: "已上架", off_shelf: "已下架" };
 
 export default function AdminProductsPage() {
+  return (
+    <div className="p-8 space-y-6">
+      <h1 className="font-display text-2xl font-bold">商品管理</h1>
+      <Tabs defaultValue="products">
+        <TabsList>
+          <TabsTrigger value="products">商品列表</TabsTrigger>
+          <TabsTrigger value="categories">分類管理</TabsTrigger>
+        </TabsList>
+        <TabsContent value="products"><ProductsTab /></TabsContent>
+        <TabsContent value="categories"><CategoriesTab /></TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function ProductsTab() {
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<EditingProduct | null>(null);
   const { data: products, isLoading } = useQuery({ queryKey: ["admin-products"], queryFn: () => adminApi.get<AdminProduct[]>("/admin/products") });
 
   const toggleShelf = useMutation({
@@ -24,11 +44,20 @@ export default function AdminProductsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-products"] }),
   });
 
+  const openCreate = () => { setEditingProduct(null); setFormOpen(true); };
+  const openEdit = (p: AdminProduct) => {
+    setEditingProduct({
+      id: p.id, nameZh: p.nameZh, nameEn: p.nameEn, categoryId: p.categoryId,
+      priceOriginalCents: p.priceOriginalCents, priceAfterCents: p.priceAfterCents,
+      images: p.images, descriptionZh: p.descriptionZh, descriptionEn: p.descriptionEn,
+    });
+    setFormOpen(true);
+  };
+
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">商品管理</h1>
-        <Button onClick={() => setFormOpen(true)}>+ 新增商品</Button>
+    <div className="space-y-4 mt-4">
+      <div className="flex justify-end">
+        <Button onClick={openCreate}>+ 新增商品</Button>
       </div>
 
       <div className="bg-white rounded-lg border border-border overflow-hidden">
@@ -55,7 +84,8 @@ export default function AdminProductsPage() {
                     {STATUS_LABEL[p.status] ?? p.status}
                   </span>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right space-x-2">
+                  <Button size="sm" variant="outline" onClick={() => openEdit(p)}>編輯</Button>
                   {p.status === "on_shelf" ? (
                     <Button size="sm" variant="outline" onClick={() => toggleShelf.mutate({ id: p.id, status: "off_shelf" })}>下架</Button>
                   ) : (
@@ -68,7 +98,12 @@ export default function AdminProductsPage() {
         </Table>
       </div>
 
-      <ProductFormDialog open={formOpen} onOpenChange={setFormOpen} onCreated={() => queryClient.invalidateQueries({ queryKey: ["admin-products"] })} />
+      <ProductFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        editingProduct={editingProduct}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ["admin-products"] })}
+      />
     </div>
   );
 }

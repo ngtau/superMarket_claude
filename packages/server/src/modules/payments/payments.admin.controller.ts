@@ -36,6 +36,11 @@ export class PaymentMethodsController {
     return this.paymentsAdminService.findAllMethods();
   }
 
+  @Get(":id/merchant-info")
+  getMerchantInfo(@Param("id") id: string) {
+    return this.paymentsAdminService.getMerchantInfo(id);
+  }
+
   @Patch(":id")
   update(@Param("id") id: string, @Body() body: { enabled?: boolean; merchantInfo?: Record<string, string>; config?: Record<string, unknown> }) {
     return this.paymentsAdminService.updateMethod(id, body);

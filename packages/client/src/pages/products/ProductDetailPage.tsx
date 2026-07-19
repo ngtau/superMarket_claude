@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Heart } from "lucide-react";
+import DOMPurify from "dompurify";
 import { formatCurrency } from "@app/shared";
 import { Button } from "@/components/ui/button";
 import { useProductDetail } from "@/hooks/useProducts";
@@ -79,7 +80,15 @@ export default function ProductDetailPage() {
           )}
         </div>
 
-        {product.description && <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>}
+        {/* ⚠️修复：此前description被当纯文本渲染，富文本编辑器产出的HTML标签会原样显示为文字而非格式化内容。
+            现改为dangerouslySetInnerHTML渲染，但必须先经DOMPurify消毒防XSS——管理员输入本身可信，
+            但富文本编辑器的"源代码"模式允许直接粘贴任意HTML，消毒是防止恶意脚本注入的最后一道防线。 */}
+        {product.description && (
+          <div
+            className="prose prose-sm max-w-none text-sm text-muted-foreground leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description) }}
+          />
+        )}
 
         {product.specs.length > 1 && (
           <div>
