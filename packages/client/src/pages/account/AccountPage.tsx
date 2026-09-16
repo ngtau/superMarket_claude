@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Heart, ShoppingBag, MapPin, LogOut } from "lucide-react";
+import { Heart, ShoppingBag, MapPin, LogOut, MessageCircle, HelpCircle } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { useCustomerAuthStore } from "@/store/customer-auth-store";
 
@@ -22,6 +22,10 @@ export default function AccountPage() {
     { to: "/orders", label: i18n.language === "zh-HK" ? "我的訂單" : "My Orders", icon: ShoppingBag },
     { to: "/favorites", label: i18n.language === "zh-HK" ? "我的收藏" : "My Favorites", icon: Heart },
     { to: "/account/addresses", label: i18n.language === "zh-HK" ? "收貨地址" : "Addresses", icon: MapPin },
+    // §5.14 DoD：个人中心需能查看自己反馈的处理状态/回复
+    { to: "/account/feedbacks", label: i18n.language === "zh-HK" ? "我的回饋" : "My Feedback", icon: MessageCircle },
+    // §5.11：客服/帮助入口（无需登录也开放，此处同样给出入口便于已登录用户直达）
+    { to: "/support", label: i18n.language === "zh-HK" ? "客服與幫助" : "Help & Support", icon: HelpCircle },
   ];
 
   return (

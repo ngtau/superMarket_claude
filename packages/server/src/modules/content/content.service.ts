@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "../../db/client.js";
-import { banners, announcements, recommendations, faqs, products } from "../../db/schema/index.js";
+import { banners, announcements, recommendations, faqs, products, platformSettings } from "../../db/schema/index.js";
 import { resolveBilingual, type Locale } from "@app/shared";
 
 @Injectable()
@@ -22,6 +22,27 @@ export class ContentService {
       sort: f.sort,
     }));
   }
+  /**
+   * §5.11 客服/帮助：C端读取后台「平台基础信息」里配置的客服联系方式。
+   * 数据源 = platform_settings（shop_name_* / contact_info / logo_url），与 §6.9 后台录入同源。
+   */
+  async supportContact(locale: Locale) {
+    const keys = ["shop_name_zh", "shop_name_en", "logo_url", "contact_info"];
+    const rows = await db.select().from(platformSettings).where(inArray(platformSettings.key, keys));
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    const contact = (map.contact_info ?? {}) as Record<string, unknown>;
+    return {
+      shopName: resolveBilingual(
+        (map.shop_name_zh as string) ?? "",
+        (map.shop_name_en as string) ?? "",
+        locale
+      ),
+      logoUrl: (map.logo_url as string) ?? null,
+      // contact_info 由后台存为 JSON；为兼容管理员直接存成纯字符串的简易情况，此处做兜底
+      contact: typeof contact === "object" && contact !== null ? contact : { note: String(contact ?? "") },
+    };
+  }
+
   async recommendationsPublic(slot: string, locale: Locale) {
     const rows = await db
       .select({ productId: recommendations.productId, sort: recommendations.sort, nameZh: products.nameZh, nameEn: products.nameEn, images: products.images, priceAfterCents: products.priceAfterCents })

@@ -12,6 +12,8 @@ export class ContentPublicController {
   @Get("banners") banners() { return this.contentService.bannersPublic(); }
   @Get("announcements") announcements() { return this.contentService.announcementsPublic(); }
   @Get("faqs") faqs(@CurrentLocale() locale: Locale) { return this.contentService.faqsPublic(locale); }
+  /** §5.11 客服/帮助：客服联系方式（来自后台平台基础信息） */
+  @Get("support/contact") supportContact(@CurrentLocale() locale: Locale) { return this.contentService.supportContact(locale); }
 }
 
 @Controller("admin/banners")

@@ -5,6 +5,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { adminApi } from "@/lib/admin-api-client";
+import type { ShippingTemplate } from "@/types/api";
 
 const D20_LABELS: Record<string, string> = {
   order_auto_cancel_minutes: "訂單自動取消（分鐘）",
@@ -19,6 +20,8 @@ const D20_LABELS: Record<string, string> = {
 };
 
 interface AuditLog { id: string; action: string; targetType: string | null; targetId: string | null; createdAt: string }
+interface ShippingLogEntry { id: string; action: string; targetType: string | null; targetId: string | null; createdAt: string }
+interface ShipmentRow { id: string; orderNo: string; trackingNo: string | null; shippedAt: string | null }
 interface Role { id: string; key: string; nameZh: string; isBuiltin: boolean }
 interface Permission { key: string; groupZh: string; labelZh: string }
 interface RoleGrant { permission: string; access: "full" | "readonly" | "none" }
@@ -137,13 +140,146 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="defaults">默認值配置</TabsTrigger>
           <TabsTrigger value="roles">角色權限</TabsTrigger>
           <TabsTrigger value="platform">平台信息</TabsTrigger>
+          <TabsTrigger value="shipping">運費模板</TabsTrigger>
+          <TabsTrigger value="shipping-logs">支付物流日誌</TabsTrigger>
           <TabsTrigger value="audit">審計日誌</TabsTrigger>
         </TabsList>
         <TabsContent value="defaults"><DefaultsTab /></TabsContent>
         <TabsContent value="roles"><RolesTab /></TabsContent>
         <TabsContent value="platform"><PlatformInfoTab /></TabsContent>
+        <TabsContent value="shipping"><ShippingTemplateTab /></TabsContent>
+        <TabsContent value="shipping-logs"><ShippingLogsTab /></TabsContent>
         <TabsContent value="audit"><AuditLogTab /></TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+/** §6.3 行25：运费模板（首重/续重/满额包邮阈值）。金额一律为「分」（D19），界面按元输入、内部换算 */
+function ShippingTemplateTab() {
+  const queryClient = useQueryClient();
+  const { data: templates, isLoading } = useQuery({
+    queryKey: ["admin-shipping-templates"],
+    queryFn: () => adminApi.get<ShippingTemplate[]>("/admin/shipping-templates"),
+  });
+  const [draft, setDraft] = useState<Record<string, { firstWeight: string; extraWeight: string; freeThreshold: string }>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  const saveMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
+      adminApi.patch(`/admin/shipping-templates/${id}`, body),
+    onSuccess: () => { setError(null); queryClient.invalidateQueries({ queryKey: ["admin-shipping-templates"] }); },
+    onError: (err: any) => setError(err.message ?? "保存失敗"),
+  });
+
+  if (isLoading) return <p className="text-muted-foreground mt-4">載入中…</p>;
+
+  return (
+    <div className="bg-white rounded-lg border border-border p-5 mt-4 space-y-4">
+      {error && <p className="text-sm text-chili bg-chili/10 rounded px-3 py-2">{error}</p>}
+      <p className="text-xs text-muted-foreground">
+        金額以「元」輸入，保存時自動換算為「分」存儲。首重/續重規則見 SDRS §6.3；未命中任何模板時按 D20⑤ 標準費率（HK$30 首重 / HK$10 續重）計費。
+      </p>
+
+      {!templates?.length && <p className="text-sm text-muted-foreground">尚無運費模板</p>}
+
+      {templates?.map((t) => {
+        const d = draft[t.id] ?? {
+          firstWeight: String(t.firstWeightCents / 100),
+          extraWeight: String(t.extraWeightCents / 100),
+          freeThreshold: t.freeShippingThresholdCents === null ? "" : String(t.freeShippingThresholdCents / 100),
+        };
+        const set = (patch: Partial<typeof d>) => setDraft((s) => ({ ...s, [t.id]: { ...d, ...patch } }));
+        return (
+          <div key={t.id} className="border border-border rounded-md p-4 space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-display font-bold text-sm">{t.nameZh} / {t.nameEn}</span>
+              {t.isDefault && <span className="text-xs bg-jade/15 text-jade px-2 py-0.5 rounded">全局默認</span>}
+              <span className={`text-xs px-2 py-0.5 rounded ${t.enabled ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
+                {t.enabled ? "啟用" : "停用"}
+              </span>
+            </div>
+
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">首重費用（HK$）</label>
+                <Input value={d.firstWeight} onChange={(e) => set({ firstWeight: e.target.value })} className="h-8" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">續重費用/kg（HK$）</label>
+                <Input value={d.extraWeight} onChange={(e) => set({ extraWeight: e.target.value })} className="h-8" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">滿額包郵門檻（HK$，留空=不包郵）</label>
+                <Input value={d.freeThreshold} onChange={(e) => set({ freeThreshold: e.target.value })} className="h-8" />
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              disabled={saveMutation.isPending}
+              onClick={() => saveMutation.mutate({ id: t.id, body: {
+                firstWeightCents: Math.round(Number(d.firstWeight) * 100),
+                extraWeightCents: Math.round(Number(d.extraWeight) * 100),
+                freeShippingThresholdCents: d.freeThreshold === "" ? null : Math.round(Number(d.freeThreshold) * 100),
+              }})}
+            >
+              {saveMutation.isPending ? "…" : "保存"}
+            </Button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** §6.3 行26：支付与物流操作日志（审计流水中与支付/物流相关的部分 + 已发货运单） */
+function ShippingLogsTab() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-shipping-logs"],
+    queryFn: () => adminApi.get<{ auditLogs: ShippingLogEntry[]; shipments: ShipmentRow[] }>("/admin/shipping-logs"),
+  });
+
+  return (
+    <div className="space-y-4 mt-4">
+      <div className="bg-white rounded-lg border border-border overflow-hidden">
+        <p className="px-4 py-2.5 text-xs font-medium text-muted-foreground border-b border-border">支付與物流操作日誌</p>
+        <Table>
+          <TableHeader><TableRow><TableHead>操作</TableHead><TableHead>目標</TableHead><TableHead>時間</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {isLoading && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">載入中…</TableCell></TableRow>}
+            {!isLoading && !data?.auditLogs?.length && (
+              <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">暫無記錄</TableCell></TableRow>
+            )}
+            {data?.auditLogs?.map((l) => (
+              <TableRow key={l.id}>
+                <TableCell className="font-mono text-xs">{l.action}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{l.targetType}:{l.targetId}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{new Date(l.createdAt).toLocaleString()}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <div className="bg-white rounded-lg border border-border overflow-hidden">
+        <p className="px-4 py-2.5 text-xs font-medium text-muted-foreground border-b border-border">已發貨運單（順豐單號）</p>
+        <Table>
+          <TableHeader><TableRow><TableHead>訂單號</TableHead><TableHead>運單號</TableHead><TableHead>發貨時間</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {!data?.shipments?.length && (
+              <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-8">暫無發貨記錄</TableCell></TableRow>
+            )}
+            {data?.shipments?.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell className="font-mono text-xs">{s.orderNo}</TableCell>
+                <TableCell className="font-mono text-xs">{s.trackingNo}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{s.shippedAt ? new Date(s.shippedAt).toLocaleString() : "-"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,36 @@
 # APCube Monorepo（Phase 0 T0 脚手架）
 
+## 文档核对轮（2026-09-16）：对照 4 份需求文档逐条核对，补齐 9 个缺失端点 + 前端缺口
+
+**产出两份文档（见 `docs/`）**：
+- `docs/开发进度核对报告_v1.md` —— 后端 API 契约逐条核对、SDRS §5/§6 功能核对、D20 默认值落位核对、数据库 Schema 核对
+- `docs/后续开发建议与变更说明_v1.md` —— 本次变更清单、4 项需你确认的事项、P0–P3 优先级建议
+
+**核对发现的 9 个缺失端点（已全部补齐）**：这些不是"功能没做"，而是**"契约里写了、甚至代码写了一半，但没被真正接入"**——靠跑测试发现不了，只能拿契约逐条勾：
+
+| 缺失端点 | 说明 |
+|---|---|
+| `GET/PATCH /admin/shipping-templates`（+bindings） | §6.3 行25 DoD 级缺失：运费模板表已建、结算引擎已读，但后台无任何配置入口，只能靠 seed 那条默认模板 |
+| `GET /admin/shipping-logs` | §6.3 行26 完全缺失 |
+| `POST /admin/products/import` | §6.1 行17 批量导入，完全缺失 |
+| `GET /admin/products/export` | §6.1 行17 批量导出，完全缺失 |
+| `POST /admin/products/batch-discount` | 契约§3 另列此路径（`/admin/discounts/batch` 已有） |
+| `POST /payments/:orderId/charge` | §5.7 完全缺失 |
+| `POST /payments/webhook/:method` | **service 早在 Phase 5 就写好了幂等骨架，但从未挂 controller**，等于从未被任何测试覆盖过 |
+| `GET /support/contact` | §5.11 完全缺失，C端客服联系方式无处可取 |
+| `GET /admin/users/:id` | §6.7 行36 用户详情，完全缺失 |
+
+**前端补齐**：首页轮播（此前只取 `banners[0]` 做静态主视觉，不满足 §5.1 DoD「自动轮播+手动切换」）、首页公告条、客服/帮助页 `/support`、我的反馈 `/account/feedbacks`、商品分享、后台运费模板/支付物流日志/用户详情；SEO 基线（robots/sitemap/JSON-LD/静态 OG）。
+
+**D20 定时任务补齐**：② 购物车 TTL 清理、④ 支付超时——此前配置项存在但无对应任务。
+
+**验证**：shared/server/client 三包 `tsc -b` 全通过，`vite build` 通过；单测 **27 个全通过**；冒烟启动 **142 条路由全部正确注册**，无启动错误，静态路径优先级（`/admin/products/export` 在 `:id` 前、`bindings/:id` 在 `:id` 前）已逐条核对。
+
+> ⚠️**两处需要你拍板的业务判断**（详见建议文档）：
+> 1. **支付超时只作用于 `pending`，不含 `pending_review`** —— 银行转账凭证已上传、等待人工审核时审核耗时不可控，一并超时会误杀正常订单。
+> 2. **批量导入导出 v1 先落 CSV，不做 xlsx** —— xlsx 需新增 exceljs 依赖，风险与收益不成比例。
+
+
 ## 部署配置 + 前端域名自动路由
 - 新增`vercel.json`（monorepo构建命令+SPA路由回退）、`packages/server/Dockerfile`（多阶段构建，适配pnpm workspace构建顺序）、可切换文件存储（`STORAGE_DRIVER=local|r2`，Railway等无持久磁盘平台部署前必须切到r2）。**R2路径按S3兼容API标准实现，未在沙箱环境实测**；local路径已实测。
 - **修复历史遗留的`pnpm approve-builds`卡死问题**：根因是早前一次交互命令留下的格式错误占位配置（`pnpm-workspace.yaml`里的`set this to true or false`字面量），导致`pnpm turbo run build`在非交互终端下反复报错/卡死。已清理配置，所有构建命令（CI/Dockerfile/vercel.json）统一改用实测可靠的`pnpm --filter @app/shared build && pnpm --filter @app/xxx build`分步方式。

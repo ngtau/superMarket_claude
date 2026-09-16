@@ -1,10 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-HK">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>client</title>
+    <!-- D7/§13 SEO 基线：静态 title/description/OG。PDP 的动态 title/OG/JSON-LD 由 usePageSeo 在客户端覆写（见 src/hooks/usePageSeo.ts） -->
+    <title>APCube 香港生活百貨 | Hong Kong Lifestyle Goods</title>
+    <meta name="description" content="APCube 香港生活百貨 —— 母嬰、化妝品、食品、家居、服飾，由街坊挑選，順豐直送到家。" />
+    <meta name="theme-color" content="#0f3b3a" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="APCube 香港生活百貨" />
+    <meta property="og:title" content="APCube 香港生活百貨 | Hong Kong Lifestyle Goods" />
+    <meta property="og:description" content="母嬰、化妝品、食品、家居、服飾，由街坊挑選，順豐直送到家。" />
+    <meta property="og:locale" content="zh_HK" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="alternate" hreflang="zh-HK" href="/?lang=zh-HK" />
+    <link rel="alternate" hreflang="en" href="/?lang=en" />
   </head>
   <body>
     <div id="root"></div>

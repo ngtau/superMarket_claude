@@ -1,34 +1,35 @@
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { Megaphone } from "lucide-react";
 import { useCategories } from "@/hooks/useCategories";
 import { useBanners, useRecommendations } from "@/hooks/useProducts";
-import { ProductCard } from "@/components/product/ProductCard";
+import { useAnnouncements } from "@/hooks/useContent";
+import { BannerCarousel } from "@/components/home/BannerCarousel";
 
 export default function HomePage() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const { data: categories } = useCategories();
   const { data: banners } = useBanners();
+  const { data: announcements } = useAnnouncements();
   const { data: hotItems } = useRecommendations("hot");
   const { data: newItems } = useRecommendations("new");
 
-  const hero = banners?.[0];
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-10">
-      {/* 招牌式主视觉：非满版大图轮播，用文字招牌感承载"这是一家什么店" */}
-      <section className="relative bg-jade rounded-lg overflow-hidden min-h-[220px] flex items-center">
-        {hero?.imageUrl && (
-          <img src={hero.imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
-        )}
-        <div className="relative z-10 px-8 py-10 text-paper">
-          <p className="font-mono text-xs tracking-widest uppercase text-brass mb-2">
-            {i18n.language === "zh-HK" ? "香港生活百貨" : "Hong Kong Lifestyle Goods"}
-          </p>
-          <h1 className="font-display text-4xl md:text-5xl font-extrabold leading-tight max-w-lg">
-            {hero?.copyZh ?? (i18n.language === "zh-HK" ? "由街坊挑選，送到你家" : "Curated by neighbours, delivered to you")}
-          </h1>
-        </div>
-      </section>
+      {/* §5.1 轮播广告：自动轮播 + 手动切换 + 点击跳转（此前只取 banners[0] 做静态主视觉，不满足 DoD） */}
+      <BannerCarousel banners={banners ?? []} />
+
+      {/* §6.6 行35：公告/活动，前端首页可见 */}
+      {announcements && announcements.length > 0 && (
+        <section className="flex items-start gap-3 bg-brass/10 border border-brass/30 rounded-lg px-4 py-3">
+          <Megaphone className="h-5 w-5 text-brass shrink-0 mt-0.5" />
+          <ul className="text-sm space-y-1 flex-1">
+            {announcements.slice(0, 3).map((a) => (
+              <li key={a.id} className="leading-relaxed">{a.content}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* 分类墙：招牌招纸式的方块导航，而非常规轮播式分类条 */}
       {categories && categories.length > 0 && (

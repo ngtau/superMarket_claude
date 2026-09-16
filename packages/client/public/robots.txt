@@ -1,0 +1,11 @@
+# D7/§13：robots.txt
+# 商城与后台共用同一构建时，后台域名另配一份禁止索引的 robots.txt（部署侧覆盖）。
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /account
+Disallow: /cart
+Disallow: /checkout
+Disallow: /orders
+
+Sitemap: https://shop.apcube.com/sitemap.xml

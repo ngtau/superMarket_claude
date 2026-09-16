@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { adminApi } from "@/lib/admin-api-client";
 
 interface CustomerUser { id: string; email: string; status: string; createdAt: string; lastLoginAt: string | null; memberLevelId: string | null }
+/** §6.7 行36：用户详情（注册信息 + 登录记录 + 订单历史） */
+interface UserDetail extends CustomerUser {
+  locale: string;
+  memberLevel: { id: string; nameZh: string; nameEn: string } | null;
+  stats: { orderCount: number; totalSpentCents: number; addressCount: number };
+  orders: { id: string; orderNo: string; status: string; paymentStatus: string; totalCents: number; createdAt: string }[];
+}
 interface AdminAccount { id: string; username: string; roleId: string; status: string }
 interface Role { id: string; key: string; nameZh: string }
 interface MemberLevel { id: string; nameZh: string; nameEn: string; sort: number }
@@ -68,8 +75,14 @@ function MemberLevelsTab() {
 
 function CustomersTab() {
   const queryClient = useQueryClient();
+  const [detailId, setDetailId] = useState<string | null>(null);
   const { data: users, isLoading } = useQuery({ queryKey: ["admin-users"], queryFn: () => adminApi.get<CustomerUser[]>("/admin/users") });
   const { data: levels } = useQuery({ queryKey: ["admin-member-levels"], queryFn: () => adminApi.get<MemberLevel[]>("/admin/member-levels") });
+  const { data: detail, isLoading: detailLoading } = useQuery({
+    queryKey: ["admin-user-detail", detailId],
+    queryFn: () => adminApi.get<UserDetail>(`/admin/users/${detailId}`),
+    enabled: !!detailId,
+  });
   const toggleMutation = useMutation({
     mutationFn: ({ id, action }: { id: string; action: "disable" | "enable" }) => adminApi.post(`/admin/users/${id}/${action}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin-users"] }),
@@ -80,7 +93,44 @@ function CustomersTab() {
   });
 
   return (
-    <div className="bg-white rounded-lg border border-border overflow-hidden mt-4">
+    <div className="space-y-4 mt-4">
+    {detail && (
+      <div className="bg-white rounded-lg border border-border p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display font-bold">{detail.email}</h3>
+          <Button size="sm" variant="outline" onClick={() => setDetailId(null)}>關閉</Button>
+        </div>
+        <div className="grid sm:grid-cols-3 gap-3 text-sm">
+          <div><p className="text-xs text-muted-foreground">註冊時間</p><p>{new Date(detail.createdAt).toLocaleString()}</p></div>
+          <div><p className="text-xs text-muted-foreground">最近登入</p><p>{detail.lastLoginAt ? new Date(detail.lastLoginAt).toLocaleString() : "從未登入"}</p></div>
+          <div><p className="text-xs text-muted-foreground">會員等級</p><p>{detail.memberLevel?.nameZh ?? "未設定"}</p></div>
+          <div><p className="text-xs text-muted-foreground">訂單數</p><p>{detail.stats.orderCount}</p></div>
+          <div><p className="text-xs text-muted-foreground">已付款金額</p><p className="font-mono">HK${(detail.stats.totalSpentCents / 100).toFixed(2)}</p></div>
+          <div><p className="text-xs text-muted-foreground">收貨地址數</p><p>{detail.stats.addressCount}</p></div>
+        </div>
+        {detail.orders.length > 0 && (
+          <div className="border border-border rounded-md overflow-hidden">
+            <p className="px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border">訂單歷史</p>
+            <Table>
+              <TableHeader><TableRow><TableHead>訂單號</TableHead><TableHead>狀態</TableHead><TableHead>支付</TableHead><TableHead>金額</TableHead><TableHead>下單時間</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {detail.orders.map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="font-mono text-xs">{o.orderNo}</TableCell>
+                    <TableCell className="text-xs">{o.status}</TableCell>
+                    <TableCell className="text-xs">{o.paymentStatus}</TableCell>
+                    <TableCell className="font-mono text-xs">HK${(o.totalCents / 100).toFixed(2)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{new Date(o.createdAt).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    )}
+    {detailId && detailLoading && <p className="text-sm text-muted-foreground">載入中…</p>}
+    <div className="bg-white rounded-lg border border-border overflow-hidden">
       <Table>
         <TableHeader><TableRow><TableHead>郵箱</TableHead><TableHead>會員等級</TableHead><TableHead>狀態</TableHead><TableHead>註冊時間</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader>
         <TableBody>
@@ -88,7 +138,11 @@ function CustomersTab() {
           {!isLoading && !users?.length && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">暫無用戶</TableCell></TableRow>}
           {users?.map((u) => (
             <TableRow key={u.id}>
-              <TableCell>{u.email}</TableCell>
+              <TableCell>
+                <button onClick={() => setDetailId(u.id)} className="hover:text-jade hover:underline text-left">
+                  {u.email}
+                </button>
+              </TableCell>
               <TableCell>
                 <select
                   value={u.memberLevelId ?? ""}
@@ -116,6 +170,7 @@ function CustomersTab() {
           ))}
         </TableBody>
       </Table>
+    </div>
     </div>
   );
 }

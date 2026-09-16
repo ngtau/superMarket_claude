@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  D7/§13：sitemap.xml（关键页子集）
+  说明：数千 SKU 的商品详情页（PDP）无法全量预渲染/枚举，D7 定案是「关键页子集预渲染 + PDP SSR/ISR + CDN 边缘缓存」。
+  因此本文件只收录稳定可枚举的静态入口（首页、商品列表、客服帮助）；
+  PDP 的收录依赖 vike SSR/ISR 接入后动态生成 sitemap（见 docs 后续开发建议 P2）。
+  部署到真实域名后请把 <loc> 中的域名替换为实际域名。
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://shop.apcube.com/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://shop.apcube.com/products</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://shop.apcube.com/support</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+</urlset>

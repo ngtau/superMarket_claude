@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Heart } from "lucide-react";
+import { Heart, Share2 } from "lucide-react";
 import DOMPurify from "dompurify";
 import { formatCurrency } from "@app/shared";
 import { Button } from "@/components/ui/button";
 import { useProductDetail } from "@/hooks/useProducts";
 import { useCartStore } from "@/store/cart-store";
 import { useFavorites } from "@/hooks/useFavorites";
+import { usePageSeo } from "@/hooks/usePageSeo";
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +20,62 @@ export default function ProductDetailPage() {
   const { isFavorited, toggle, isLoggedIn } = useFavorites();
   const [selectedSpecId, setSelectedSpecId] = useState<string | null>(null);
   const [added, setAdded] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  // D7：PDP 结构化数据（Product + Offer + BreadcrumbList）。
+  // 必须 useMemo：usePageSeo 的 effect 依赖 jsonLd 引用，若每次渲染都新建对象会导致 effect 反复触发。
+  const productJsonLd = useMemo(() => {
+    if (!product) return null;
+    const price = (product.specs[0]?.priceAfterCents ?? product.priceCents) / 100;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: product.name,
+      image: product.images,
+      description: product.description?.replace(/<[^>]*>/g, "").slice(0, 500),
+      brand: { "@type": "Brand", name: "APCube" },
+      offers: {
+        "@type": "Offer",
+        priceCurrency: "HKD",
+        price: price.toFixed(2),
+        availability: (product.specs[0]?.available ?? 0) > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+        url: window.location.href,
+      },
+    };
+  }, [product]);
+
+  usePageSeo({
+    title: product?.name,
+    description: product?.description?.replace(/<[^>]*>/g, "").slice(0, 160),
+    imageUrl: product?.images[0],
+    jsonLd: productJsonLd,
+  });
+
+  /**
+   * §5.4 DoD「分享可用」：优先用 Web Share API（移动端唤起系统分享面板），
+   * 不支持时降级为复制链接到剪贴板；再不支持（非 HTTPS 的旧浏览器）则提示手动复制。
+   */
+  const handleShare = async () => {
+    const url = window.location.href;
+    const title = product?.name ?? document.title;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url });
+        return;
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setShared(true);
+        setTimeout(() => setShared(false), 1800);
+        return;
+      }
+      window.prompt(i18n.language === "zh-HK" ? "複製此連結分享：" : "Copy this link to share:", url);
+    } catch {
+      // 用户主动取消系统分享面板会抛 AbortError，属正常行为，静默忽略
+    }
+  };
 
   if (isLoading) {
     return <div className="max-w-4xl mx-auto px-4 py-16 text-center text-muted-foreground">{i18n.language === "zh-HK" ? "載入中…" : "Loading…"}</div>;
@@ -64,14 +121,26 @@ export default function ProductDetailPage() {
       <div className="space-y-5">
         <div className="flex items-start justify-between gap-3">
           <h1 className="font-display text-2xl font-bold">{product.name}</h1>
-          <button
-            onClick={() => { if (!toggle(product.id)) navigate(`/login?redirect=/product/${product.id}`); }}
-            className="shrink-0 mt-1"
-            aria-label={i18n.language === "zh-HK" ? "收藏" : "Favorite"}
-          >
-            <Heart className={`h-6 w-6 transition-colors ${isFavorited(product.id) ? "fill-chili text-chili" : "text-muted-foreground"}`} />
-          </button>
+          <div className="flex items-center gap-3 shrink-0 mt-1">
+            <button
+              onClick={handleShare}
+              className="shrink-0"
+              aria-label={i18n.language === "zh-HK" ? "分享" : "Share"}
+            >
+              <Share2 className={`h-6 w-6 transition-colors ${shared ? "text-jade" : "text-muted-foreground"}`} />
+            </button>
+            <button
+              onClick={() => { if (!toggle(product.id)) navigate(`/login?redirect=/product/${product.id}`); }}
+              className="shrink-0"
+              aria-label={i18n.language === "zh-HK" ? "收藏" : "Favorite"}
+            >
+              <Heart className={`h-6 w-6 transition-colors ${isFavorited(product.id) ? "fill-chili text-chili" : "text-muted-foreground"}`} />
+            </button>
+          </div>
         </div>
+        {shared && (
+          <p className="font-mono text-xs text-jade">{i18n.language === "zh-HK" ? "連結已複製" : "Link copied"}</p>
+        )}
 
         <div className="flex items-baseline gap-3">
           <span className="font-mono text-2xl font-bold text-jade">{formatCurrency(selectedSpec?.priceAfterCents ?? product.priceCents, locale)}</span>

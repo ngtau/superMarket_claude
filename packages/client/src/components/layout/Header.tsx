@@ -72,6 +72,11 @@ export function Header() {
           </div>
         </form>
 
+        {/* §5.11：客服/帮助入口，游客可见（无需登录） */}
+        <Link to="/support" className="hidden sm:block font-display text-sm font-semibold hover:text-brass transition-colors shrink-0">
+          {i18n.language === "zh-HK" ? "幫助" : "Help"}
+        </Link>
+
         <button
           onClick={() => i18n.changeLanguage(i18n.language === "zh-HK" ? "en" : "zh-HK")}
           className="font-mono text-xs px-2 py-1 border border-brass/60 rounded hover:bg-brass/10 shrink-0"

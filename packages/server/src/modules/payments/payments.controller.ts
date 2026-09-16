@@ -19,6 +19,12 @@ export class PaymentsController {
     return this.paymentsService.uploadVoucher(orderId, user.userId, body.voucherUrl);
   }
 
+  /** §5.7：发起支付（银行转账返回收款信息；线上渠道返回跳转链接/二维码，未开通门控返回400） */
+  @Post(":orderId/charge")
+  charge(@Param("orderId") orderId: string, @CurrentUser() user: UserPrincipal) {
+    return this.paymentsService.createCharge(orderId, user.userId);
+  }
+
   @Get(":orderId/poll")
   poll(@Param("orderId") orderId: string, @CurrentUser() user: UserPrincipal) {
     return this.paymentsService.poll(orderId, user.userId);

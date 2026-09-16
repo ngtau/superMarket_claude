@@ -20,6 +20,8 @@ const OrderDetailPage = lazy(() => import("@/pages/orders/OrderDetailPage"));
 const FavoritesPage = lazy(() => import("@/pages/favorites/FavoritesPage"));
 const AccountPage = lazy(() => import("@/pages/account/AccountPage"));
 const AddressesPage = lazy(() => import("@/pages/account/AddressesPage"));
+const MyFeedbacksPage = lazy(() => import("@/pages/account/MyFeedbacksPage"));
+const SupportPage = lazy(() => import("@/pages/support/SupportPage"));
 const AdminLoginPage = lazy(() => import("@/pages/admin/auth/AdminLoginPage"));
 const AdminDashboardPage = lazy(() => import("@/pages/admin/dashboard/AdminDashboardPage"));
 const AdminProductsPage = lazy(() => import("@/pages/admin/products/AdminProductsPage"));
@@ -74,6 +76,8 @@ function App() {
           <Route path="/favorites" element={<StorefrontLayout><RequireCustomerAuth><FavoritesPage /></RequireCustomerAuth></StorefrontLayout>} />
           <Route path="/account" element={<StorefrontLayout><RequireCustomerAuth><AccountPage /></RequireCustomerAuth></StorefrontLayout>} />
           <Route path="/account/addresses" element={<StorefrontLayout><RequireCustomerAuth><AddressesPage /></RequireCustomerAuth></StorefrontLayout>} />
+          {/* §5.14 DoD：个人中心「我的反馈」列表，查看处理状态与回复 */}
+          <Route path="/account/feedbacks" element={<StorefrontLayout><RequireCustomerAuth><MyFeedbacksPage /></RequireCustomerAuth></StorefrontLayout>} />
 
           {/* B端后台 */}
           <Route path="/admin/login" element={<AdminLoginPage />} />

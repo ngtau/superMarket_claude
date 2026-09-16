@@ -31,6 +31,7 @@ import { SettingsModule } from "./modules/settings/settings.module.js";
 import { StatsModule } from "./modules/stats/stats.module.js";
 import { ReceiptsModule } from "./modules/receipts/receipts.module.js";
 import { SchedulerModule } from "./modules/scheduler/scheduler.module.js";
+import { ShippingModule } from "./modules/shipping/shipping.module.js";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter.js";
 
 // D6：Sentry异常监控初始化（SENTRY_DSN未配置时SDK自动降级为no-op，不影响本地开发）
@@ -50,7 +51,7 @@ Sentry.init({ dsn: process.env.SENTRY_DSN, tracesSampleRate: 0.1 });
     CategoriesModule, ProductsModule, InventoryModule, CartModule, CheckoutModule,
     OrdersModule, PaymentsModule, MarketingModule, ContentModule, FeedbackModule,
     AdminsModule, MembersModule, SettingsModule, StatsModule, ReceiptsModule,
-    SchedulerModule,
+    SchedulerModule, ShippingModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
