@@ -9,7 +9,10 @@
     "start": "node dist/main.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
+    "db:push": "drizzle-kit push",
     "db:seed": "tsx src/db/seed.ts",
+    "db:seed:demo": "tsx src/scripts/seed-demo.ts",
+    "sitemap:generate": "tsx src/scripts/generate-sitemap.ts",
     "lint": "echo \"(lint TODO)\"",
     "test": "vitest run"
   },

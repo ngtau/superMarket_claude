@@ -15,10 +15,14 @@ export function resolveBilingual(
   return en || zh || "";
 }
 
-/** 后台编辑场景：Zod schema 工厂，生成 { fieldZh, fieldEn } 必填校验 */
-export function bilingualFieldSchema(minLen = 1) {
-  return z.object({
-    zh: z.string().min(minLen),
-    en: z.string().min(minLen),
-  });
+/**
+ * 后台编辑场景：校验一对双语值（zh/en 互为回退，任一为空都会导致前端出现空白，故两侧都要求非空）。
+ * 注意：本函数只校验取值，不产出 {zh,en} 字段形状——后台 API 的双语字段遵循 §4.3 的 `xxxZh`/`xxxEn`
+ * 命名约定，schema 里直接写两个字段即可，无需再用工厂拼形状。
+ */
+export function assertBilingual(zh: unknown, en: unknown, minLen = 1): boolean {
+  return (
+    typeof zh === "string" && zh.trim().length >= minLen &&
+    typeof en === "string" && en.trim().length >= minLen
+  );
 }

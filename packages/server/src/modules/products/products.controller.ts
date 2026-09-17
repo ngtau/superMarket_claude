@@ -3,7 +3,9 @@ import type { Response } from "express";
 import { RBACGuard } from "../../common/guards/rbac.guard.js";
 import { RequirePermissions } from "../../common/decorators/require-permissions.decorator.js";
 import { CurrentLocale } from "../../common/decorators/locale.decorator.js";
-import type { Locale } from "@app/shared";
+import { ZodValidationPipe } from "../../common/pipes/zod-validation.pipe.js";
+import { z } from "zod";
+import { productCreateSchema, type Locale } from "@app/shared";
 import { ProductsService } from "./products.service.js";
 
 @Controller("products")
@@ -70,8 +72,13 @@ export class AdminProductsController {
     return this.productsService.findOneAdmin(id);
   }
 
+  /**
+   * ⚠️此前为 `body: any` 裸接收：非法入参（非整数分金额、缺 SKU、空名称）会一路走到 Drizzle
+   * 才炸出 500，前端只看到"服务器内部错误"。现接入 shared 的 productCreateSchema，
+   * 在接口层就返回字段级 400 提示。
+   */
   @Post()
-  create(@Body() body: any) {
+  create(@Body(new ZodValidationPipe(productCreateSchema)) body: z.infer<typeof productCreateSchema>) {
     return this.productsService.create(body);
   }
 

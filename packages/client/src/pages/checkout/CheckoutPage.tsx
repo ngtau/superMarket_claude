@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { api, ApiError } from "@/lib/api-client";
 import { formatCurrency } from "@app/shared";
+import { trackEvent } from "@/hooks/useTracking";
 
 interface CartItem { id: string; checked: boolean }
 interface Address { id: string; recipient: string; detail: string; isDefault: boolean }
@@ -30,6 +31,14 @@ export default function CheckoutPage() {
     }
   }, [addresses, selectedAddressId]);
 
+  // §6.8：进入结算页 = 漏斗第四层。用 ref 保证一次会话内只报一次，避免预览刷新导致重复计数
+  const checkoutTracked = useRef(false);
+  useEffect(() => {
+    if (checkoutTracked.current || checkedIds.length === 0) return;
+    checkoutTracked.current = true;
+    trackEvent("checkout_start");
+  }, [checkedIds.length]);
+
   const { data: preview } = useQuery({
     queryKey: ["checkout-preview", checkedIds],
     queryFn: () => api.post<Preview>("/checkout/preview", { cartItemIds: checkedIds }),
@@ -38,7 +47,10 @@ export default function CheckoutPage() {
 
   const placeOrderMutation = useMutation({
     mutationFn: () => api.post<{ order: { id: string } }>("/orders", { cartItemIds: checkedIds, addressId: selectedAddressId, paymentMethod: "bank_transfer" }),
-    onSuccess: (data) => navigate(`/orders/${data.order.id}/payment`),
+    onSuccess: (data) => {
+      trackEvent("order_placed");
+      navigate(`/orders/${data.order.id}/payment`);
+    },
     onError: (err) => setError(err instanceof ApiError ? err.message : "下單失敗"),
   });
 

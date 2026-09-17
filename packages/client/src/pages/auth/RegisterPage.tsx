@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, ApiError } from "@/lib/api-client";
 import { useCustomerAuthStore } from "@/store/customer-auth-store";
+import { trackEvent } from "@/hooks/useTracking";
 
 export default function RegisterPage() {
   const { i18n } = useTranslation();
@@ -27,6 +28,7 @@ export default function RegisterPage() {
     try {
       const { accessToken, refreshToken } = await api.post<{ accessToken: string; refreshToken: string }>("/auth/register", { email, password });
       setSession(accessToken, refreshToken, { id: "", email, locale: i18n.language });
+      trackEvent("register");
       navigate("/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : (i18n.language === "zh-HK" ? "註冊失敗" : "Registration failed"));

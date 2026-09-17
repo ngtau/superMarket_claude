@@ -1,0 +1,37 @@
+# 本地开发用 PostgreSQL（P0-2：DATABASE_URL 占位值问题的本地解法）
+#
+# 用法：
+#   docker compose up -d          # 启动本地库（端口 5432，库名 apcube）
+#   pnpm db:push                  # 建表（本地开发用，不生成迁移文件）
+#   pnpm db:seed                  # 灌种子数据（7角色/权限目录/D20默认值/默认运费模板/初始超管）
+#   pnpm dev                      # 起前后端
+#
+# ⚠️重要（D1）：此容器是**直连 PostgreSQL**，在应用层保留 pg 客户端连接池（DB_USE_CLIENT_POOL=true）。
+# 若换成 Neon **pooled 端点（PgBouncer 事务模式）**，必须把 DB_USE_CLIENT_POOL 设为 false，
+# 否则会形成"PgBouncer 池 + 应用池"的双重池化，连接数被放大且事务语义可能错乱——二者取一。
+#
+# 生产环境不要用它：生产用托管 PG（Neon/Supabase/RDS），并开启 PITR（D14）。
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: apcube-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: apcube
+      POSTGRES_PASSWORD: apcube
+      POSTGRES_DB: apcube
+      # 让容器内默认使用 UTF-8，避免中文/繁体数据入库乱码
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - apcube-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apcube -d apcube"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  apcube-db-data:

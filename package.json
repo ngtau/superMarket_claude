@@ -6,12 +6,17 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "e2e": "pnpm --filter @app/client e2e",
+    "db:generate": "pnpm --filter @app/server db:generate",
     "db:migrate": "pnpm --filter @app/server db:migrate",
-    "db:seed": "pnpm --filter @app/server db:seed"
+    "db:push": "pnpm --filter @app/server db:push",
+    "db:seed": "pnpm --filter @app/server db:seed",
+    "db:seed:demo": "pnpm --filter @app/server db:seed:demo",
+    "sitemap:generate": "pnpm --filter @app/server sitemap:generate"
   },
   "devDependencies": {
     "turbo": "^2.1.0",
     "typescript": "^5.6.0"
   },
-  "packageManager": "pnpm@11.11.0"
+  "packageManager": "pnpm@9.15.9"
 }

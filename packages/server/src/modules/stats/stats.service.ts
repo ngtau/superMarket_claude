@@ -2,9 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { sql, and, gte, lte, eq } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { orders, orderItems, payments, products, productSpecs } from "../../db/schema/index.js";
+import { TrackingService } from "./tracking.service.js";
 
 @Injectable()
 export class StatsService {
+  constructor(private readonly trackingService: TrackingService) {}
   /** §6.8：订单数/销售额统计。按status排除cancelled，避免虚增销售额 */
   async orderStats(from: Date, to: Date) {
     const rows = await db
@@ -47,11 +49,11 @@ export class StatsService {
       .groupBy(payments.method);
   }
 
-  /** 访问/转化统计：v1无自建埋点管道，GA4接入留待前端SDK+Measurement Protocol，此处先返回结构化占位供前端联调 */
-  async traffic(_from: Date, _to: Date) {
-    return {
-      note: "GA4/自采访问数据管道尚未接入，需前端埋点SDK就绪后对接",
-      pageViews: null, uniqueVisitors: null, conversionRate: null,
-    };
+  /**
+   * 访问/转化统计：已由结构化占位升级为**真实自采数据**（tracking_events 表）。
+   * 具体口径与交叉校验逻辑见 TrackingService.traffic()。
+   */
+  async traffic(from: Date, to: Date) {
+    return this.trackingService.traffic(from, to);
   }
 }

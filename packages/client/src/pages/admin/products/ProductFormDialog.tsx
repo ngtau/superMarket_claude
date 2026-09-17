@@ -24,7 +24,16 @@ interface Props {
   editingProduct?: EditingProduct | null;
 }
 
-const emptyForm = { nameZh: "", nameEn: "", categoryId: "", priceOriginal: "", priceAfter: "", stock: "", imageUrl: "", descriptionZh: "", descriptionEn: "" };
+/**
+ * weightGrams：§7.4 运费按重量（首重+续重/kg）计费，但原 §9 数据模型未定义重量字段，
+ * Phase 4 才在 product_specs 补上（默认 1000g）。此前后台表单没有录入项，
+ * 意味着**所有商品都按默认 1kg 算运费**而管理员毫不知情——这是会真实算错钱的问题。
+ * 这里默认给 1000，但做成可见可改，并在标签上说明它影响运费。
+ */
+const emptyForm = {
+  nameZh: "", nameEn: "", categoryId: "", priceOriginal: "", priceAfter: "",
+  stock: "", weightGrams: "1000", imageUrl: "", descriptionZh: "", descriptionEn: "",
+};
 
 export function ProductFormDialog({ open, onOpenChange, onSaved, editingProduct }: Props) {
   const isEdit = !!editingProduct;
@@ -39,7 +48,7 @@ export function ProductFormDialog({ open, onOpenChange, onSaved, editingProduct 
       setForm({
         nameZh: editingProduct.nameZh, nameEn: editingProduct.nameEn, categoryId: editingProduct.categoryId,
         priceOriginal: String(editingProduct.priceOriginalCents / 100), priceAfter: String(editingProduct.priceAfterCents / 100),
-        stock: "", imageUrl: editingProduct.images[0] ?? "",
+        stock: "", weightGrams: "1000", imageUrl: editingProduct.images[0] ?? "",
         descriptionZh: editingProduct.descriptionZh ?? "", descriptionEn: editingProduct.descriptionEn ?? "",
       });
     } else {
@@ -62,7 +71,12 @@ export function ProductFormDialog({ open, onOpenChange, onSaved, editingProduct 
       if (isEdit) return adminApi.patch(`/admin/products/${editingProduct!.id}`, payload);
       return adminApi.post("/admin/products", {
         ...payload,
-        specs: [{ specNameZh: "標準", specNameEn: "Standard", initialStock: Number(form.stock) }],
+        specs: [{
+          specNameZh: "標準",
+          specNameEn: "Standard",
+          initialStock: Number(form.stock),
+          weightGrams: Number(form.weightGrams) > 0 ? Number(form.weightGrams) : 1000,
+        }],
       });
     },
     onSuccess: () => { onSaved(); onOpenChange(false); },
@@ -94,7 +108,7 @@ export function ProductFormDialog({ open, onOpenChange, onSaved, editingProduct 
               </SelectContent>
             </Select>
           </div>
-          <div className={`grid ${isEdit ? "grid-cols-2" : "grid-cols-3"} gap-3`}>
+          <div className={`grid ${isEdit ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"} gap-3`}>
             <div>
               <label className="text-sm font-medium block mb-1">原價 (HK$)</label>
               <Input type="number" step="0.01" value={form.priceOriginal} onChange={(e) => set("priceOriginal", e.target.value)} required />
@@ -104,10 +118,23 @@ export function ProductFormDialog({ open, onOpenChange, onSaved, editingProduct 
               <Input type="number" step="0.01" value={form.priceAfter} onChange={(e) => set("priceAfter", e.target.value)} required />
             </div>
             {!isEdit && (
-              <div>
-                <label className="text-sm font-medium block mb-1">初始庫存</label>
-                <Input type="number" value={form.stock} onChange={(e) => set("stock", e.target.value)} required />
-              </div>
+              <>
+                <div>
+                  <label className="text-sm font-medium block mb-1">初始庫存</label>
+                  <Input type="number" value={form.stock} onChange={(e) => set("stock", e.target.value)} required />
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-1">重量 (g) · 影響運費</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={form.weightGrams}
+                    onChange={(e) => set("weightGrams", e.target.value)}
+                    required
+                    title="運費按首重+續重/kg計算，此值決定該商品計入的重量"
+                  />
+                </div>
+              </>
             )}
           </div>
           <div>

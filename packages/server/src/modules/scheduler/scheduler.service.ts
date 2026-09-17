@@ -4,12 +4,16 @@ import { eq, inArray, lt } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { platformSettings, carts, cartItems, payments, orders } from "../../db/schema/index.js";
 import { OrdersAdminService } from "../orders/orders.admin.service.js";
+import { SettingsService } from "../settings/settings.service.js";
 
 @Injectable()
 export class SchedulerService {
   private readonly logger = new Logger(SchedulerService.name);
 
-  constructor(private readonly ordersAdminService: OrdersAdminService) {}
+  constructor(
+    private readonly ordersAdminService: OrdersAdminService,
+    private readonly settingsService: SettingsService
+  ) {}
 
   private async readNumberSetting(key: string, fallback: number): Promise<number> {
     const [setting] = await db.select().from(platformSettings).where(eq(platformSettings.key, key)).limit(1);
@@ -81,6 +85,24 @@ export class SchedulerService {
     }
     if (targets.length > 0) {
       this.logger.log(`支付超时置为失败 ${targets.length} 笔（超过 ${timeoutMinutes} 分钟未支付）`);
+    }
+  }
+
+  /**
+   * D14/§12.4：每日定时 JSON 导出备份（凌晨 3 点，避开营业高峰）。
+   * 只覆盖"应用层 JSON 导出"这一半；PITR 由托管 PostgreSQL 侧配置，应用层做不了。
+   * 失败只记日志不抛异常——备份失败不该影响在线服务，但会在 Sentry 侧可见（Logger 输出进日志管道）。
+   */
+  @Cron("0 3 * * *")
+  async dailyBackup() {
+    try {
+      const result = await this.settingsService.triggerBackup("scheduled");
+      this.logger.log(`定时备份完成：${result.fileUrl}（${result.sizeBytes} bytes，${result.tableCount} 张表）`);
+      if (!result.persistent) {
+        this.logger.warn("备份写入本地磁盘而非对象存储，实例重启后会丢失——生产环境请设置 STORAGE_DRIVER=r2");
+      }
+    } catch (err) {
+      this.logger.error(`定时备份失败：${(err as Error).message}`);
     }
   }
 }

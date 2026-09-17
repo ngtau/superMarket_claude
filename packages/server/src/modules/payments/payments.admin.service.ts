@@ -42,8 +42,13 @@ export class PaymentsAdminService {
     const [payment] = await db.select().from(payments).where(eq(payments.id, paymentId)).limit(1);
     if (!payment) throw new NotFoundException("支付记录不存在");
     assertPaymentTransition(payment.status, "failed");
-    const [updated] = await db.update(payments).set({ status: "failed" }).where(eq(payments.id, paymentId)).returning();
-    return updated;
+    // 与 approve/uploadVoucher 同一原则：支付状态变化必须同步回 orders.paymentStatus，
+    // 否则驳回后用户端仍显示「待付款」，看不到驳回结果（可重新上传凭证 → 回到 pending_review）
+    return db.transaction(async (tx) => {
+      const [updated] = await tx.update(payments).set({ status: "failed" }).where(eq(payments.id, paymentId)).returning();
+      await tx.update(orders).set({ paymentStatus: "failed" }).where(eq(orders.id, payment.orderId));
+      return updated;
+    });
   }
 
   findAllMethods() {

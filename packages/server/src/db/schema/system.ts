@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { pgTable, uuid, varchar, text, boolean, jsonb, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, text, boolean, jsonb, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { users } from "./users.js";
 
 // roles —— ✅已确认支持自定义角色。种子预置§7.5的7个内置角色（isBuiltin=true，不可删除，可改权限点）
 export const roles = pgTable("roles", {
@@ -58,6 +59,32 @@ export const platformSettings = pgTable("platform_settings", {
   value: jsonb("value"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(sql`now()`),
 });
+
+/**
+ * tracking_events —— §6.8 行42「访问与转化统计」的**自采数据源**。
+ *
+ * 为什么自建而不只靠 GA4：SDRS 说"GA4 + 必要自采转化事件；看板转化取自订单 DB"。
+ * GA4 需要账号与前端 SDK，属外部依赖；而后台看板要的是"访问量/注册量/浏览量/下单转化率"，
+ * 这几个指标用一张极简事件表就能算，且数据留在自己库里、可与其他业务数据join。
+ *
+ * PDPO 约束：本表**不落任何 PII**——只存随机 sessionId（前端生成的匿名ID）、事件类型、路径、
+ * 商品ID、可空 userId。不存 IP、不存 UA、不存地理位置。
+ */
+export const trackingEvents = pgTable("tracking_events", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id", { length: 64 }).notNull(), // 前端生成的匿名会话ID（非PII）
+  eventType: varchar("event_type", { length: 32 }).notNull(),
+  // page_view / product_view / add_to_cart / checkout_start / register / order_placed
+  path: varchar("path", { length: 255 }),
+  productId: uuid("product_id"),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }), // 登录后才可能有值
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`now()`),
+}, (t) => ({
+  // ⚠️这里必须用普通 index 而非 uniqueIndex：同一会话会产出多条事件、同一事件类型同一时刻也可能有多条，
+  // 误加 unique 会让并发埋点直接撞唯一约束报 500。
+  typeCreatedIdx: index("tracking_events_type_created_idx").on(t.eventType, t.createdAt),
+  sessionIdx: index("tracking_events_session_idx").on(t.sessionId),
+}));
 
 export const systemBackups = pgTable("system_backups", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),

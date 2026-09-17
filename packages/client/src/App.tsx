@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { RequireCustomerAuth } from "@/components/RequireCustomerAuth";
 import { isAdminHost } from "@/lib/host";
+import { usePageTracking } from "@/hooks/useTracking";
 
 const HomePage = lazy(() => import("@/pages/home/HomePage"));
 const ProductListPage = lazy(() => import("@/pages/products/ProductListPage"));
@@ -46,6 +47,8 @@ function StorefrontLayout({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  // §6.8：SPA 无整页刷新，路由变化即视为一次访问，由 hook 自动上报 page_view
+  usePageTracking();
   return (
     <ErrorBoundary>
       <Suspense fallback={<PageLoading />}>

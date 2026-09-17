@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Heart, Share2 } from "lucide-react";
@@ -9,6 +9,7 @@ import { useProductDetail } from "@/hooks/useProducts";
 import { useCartStore } from "@/store/cart-store";
 import { useFavorites } from "@/hooks/useFavorites";
 import { usePageSeo } from "@/hooks/usePageSeo";
+import { trackEvent } from "@/hooks/useTracking";
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -53,6 +54,12 @@ export default function ProductDetailPage() {
     jsonLd: productJsonLd,
   });
 
+  // §6.8：商品浏览是转化漏斗第二层（访问→商品浏览→加购→结算→下单）。
+  // 必须放在任何条件 return 之前——Hooks 调用顺序不可变。
+  useEffect(() => {
+    if (product) trackEvent("product_view", { productId: product.id });
+  }, [product?.id]);
+
   /**
    * §5.4 DoD「分享可用」：优先用 Web Share API（移动端唤起系统分享面板），
    * 不支持时降级为复制链接到剪贴板；再不支持（非 HTTPS 的旧浏览器）则提示手动复制。
@@ -91,6 +98,7 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     if (!selectedSpec) return;
+    trackEvent("add_to_cart", { productId: product.id });
     addItem({
       skuId: selectedSpec.id,
       productId: product.id,

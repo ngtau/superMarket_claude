@@ -6,3 +6,8 @@ dist-admin
 *.tsbuildinfo
 .turbo
 packages/server/uploads/
+# Playwright 产物（报告含失败截图/trace，不入库）
+playwright-report/
+test-results/
+blob-report/
+.playwright/

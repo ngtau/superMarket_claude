@@ -1,5 +1,33 @@
 # APCube Monorepo（Phase 0 T0 脚手架）
 
+## 未完成清单处理轮（2026-09-17）：CI 重建 + Playwright E2E + 清单 16 项逐条处理
+
+产出 `docs/确认文档_v2.md`（处理结果总览 + 8 项决策说明 + 文件级变更清单 + 遗留风险）。
+
+**新增能力**：
+
+| 能力 | 说明 |
+|---|---|
+| `.github/workflows/ci.yml` | 重建被历史提交 `79ba3f5 rm .github` 删除的 CI；两个 job：build+单测、E2E（Postgres 16 service 容器） |
+| Playwright E2E | `packages/client/e2e/`：C 端购物链路（注册→加购→结算→下单→上传凭证→断言 `pending_review`）、履约链路（审核→发货→确认收货→断言 `completed`） |
+| `docker-compose.yml` | 本地一键 Postgres 16，配合 `db:migrate` / `db:seed` / `db:seed:demo` |
+| `db:seed:demo` | 演示商品种子（与系统必需数据分离，避免误灌生产库；E2E 依赖其中固定 fixture 商品） |
+| 真实备份导出 | `triggerBackup` 由 `pending://` 占位改为全表 JSON 导出落盘 + 每日定时任务 + 保留份数清理 |
+| 自采访问统计 | 新增 `tracking_events` 表 + `/tracking` 接口 + 前端埋点 hook，`/admin/stats/traffic` 由结构化占位改为真实 PV/UV/转化率聚合 |
+| 动态 sitemap | `pnpm sitemap:generate` 从库生成全量 PDP/分类 sitemap.xml，替代静态 3 条占位 |
+| 商品重量字段 | 后台表单新增「重量(g)」录入，落 SKU 级 `weight_grams`，运费不再一律按默认 1000g 计算 |
+
+**决策已按建议执行**：不做 vike SSR（改 sitemap + JSON-LD 过渡）、不做 xlsx（维持 CSV）、E2E 后台动作走 API（admin 独立 host 限制）、`packageManager` 回写 `pnpm@9.15.9`（与 lockfile 一致）。详见确认文档第二章，逐条标注了回退成本。
+
+**本地跑 E2E**（需 Docker）：
+```bash
+docker compose up -d
+pnpm install && pnpm build
+pnpm db:migrate && pnpm db:seed && pnpm db:seed:demo
+pnpm --filter @app/client e2e:install
+pnpm e2e
+```
+
 ## 文档核对轮（2026-09-16）：对照 4 份需求文档逐条核对，补齐 9 个缺失端点 + 前端缺口
 
 **产出两份文档（见 `docs/`）**：

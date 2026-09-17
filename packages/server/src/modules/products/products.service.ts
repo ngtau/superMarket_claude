@@ -131,9 +131,14 @@ export class ProductsService {
   }
 
   async create(input: {
-    nameZh: string; nameEn: string; descriptionZh?: string; descriptionEn?: string;
+    nameZh: string; nameEn: string; descriptionZh?: string | null; descriptionEn?: string | null;
     priceOriginalCents: number; priceAfterCents: number; categoryId: string; images?: string[];
-    specs: { specNameZh: string; specNameEn: string; priceOriginalCents?: number; priceAfterCents?: number; initialStock: number }[];
+    specs: {
+      specNameZh: string; specNameEn: string; priceOriginalCents?: number; priceAfterCents?: number;
+      initialStock: number;
+      /** §7.4 运费按重量计费；缺省回落到 1000g（=D20⑤首重档位） */
+      weightGrams?: number;
+    }[];
   }) {
     const [product] = await db.insert(products).values({
       nameZh: input.nameZh, nameEn: input.nameEn,
@@ -147,6 +152,8 @@ export class ProductsService {
       const [spec] = await db.insert(productSpecs).values({
         productId: product.id, specNameZh: s.specNameZh, specNameEn: s.specNameEn,
         priceOriginalCents: s.priceOriginalCents, priceAfterCents: s.priceAfterCents,
+        // 非法值（0/负数/NaN）一律回落到 1000g，避免运费算出 0 或 NaN
+        weightGrams: Number.isFinite(s.weightGrams) && (s.weightGrams as number) > 0 ? s.weightGrams! : 1000,
       }).returning();
       await db.insert(inventory).values({ skuId: spec.id, stock: s.initialStock, lockedStock: 0 });
     }
