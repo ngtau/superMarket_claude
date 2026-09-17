@@ -17,6 +17,8 @@ interface CartState {
   updateQty: (skuId: string, qty: number) => void;
   removeItem: (skuId: string) => void;
   totalQty: () => number;
+  /** 合并到服务端后必须清空，否则本地残留会在下次游客态加购时被重复合并，造成数量翻倍 */
+  clear: () => void;
 }
 
 /**
@@ -39,6 +41,7 @@ export const useCartStore = create<CartState>()(
       updateQty: (skuId, qty) => set((state) => ({ items: state.items.map((i) => (i.skuId === skuId ? { ...i, qty } : i)) })),
       removeItem: (skuId) => set((state) => ({ items: state.items.filter((i) => i.skuId !== skuId) })),
       totalQty: () => get().items.reduce((s, i) => s + i.qty, 0),
+      clear: () => set({ items: [] }),
     }),
     { name: "apcube-cart" }
   )

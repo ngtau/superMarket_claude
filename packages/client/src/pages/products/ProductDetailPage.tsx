@@ -6,6 +6,8 @@ import DOMPurify from "dompurify";
 import { formatCurrency } from "@app/shared";
 import { Button } from "@/components/ui/button";
 import { useProductDetail } from "@/hooks/useProducts";
+import { useQueryClient } from "@tanstack/react-query";
+import { api, ApiError } from "@/lib/api-client";
 import { useCartStore } from "@/store/cart-store";
 import { useFavorites } from "@/hooks/useFavorites";
 import { usePageSeo } from "@/hooks/usePageSeo";
@@ -17,11 +19,13 @@ export default function ProductDetailPage() {
   const { i18n } = useTranslation();
   const locale = i18n.language as "zh-HK" | "en";
   const { data: product, isLoading } = useProductDetail(id);
+  const queryClient = useQueryClient();
   const addItem = useCartStore((s) => s.addItem);
   const { isFavorited, toggle, isLoggedIn } = useFavorites();
   const [selectedSpecId, setSelectedSpecId] = useState<string | null>(null);
   const [added, setAdded] = useState(false);
   const [shared, setShared] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   // D7：PDP 结构化数据（Product + Offer + BreadcrumbList）。
   // 必须 useMemo：usePageSeo 的 effect 依赖 jsonLd 引用，若每次渲染都新建对象会导致 effect 反复触发。
@@ -96,17 +100,32 @@ export default function ProductDetailPage() {
     ? Math.round((1 - product.priceCents / product.priceOriginalCents) * 100)
     : 0;
 
-  const handleAddToCart = () => {
+  /**
+   * ⚠️修复（E2E 实跑发现）：此前无论登录与否都只写本地 store，而购物车页/结算页读的是服务端，
+   * 结果是「已加入購物車 ✓」提示照常出现，点进购物车却是空的——整条购物链路其实是断的。
+   * 现在：已登录直接写服务端（服务端是唯一真值），未登录才落本地，登录后由 /cart/merge 合并。
+   */
+  const handleAddToCart = async () => {
     if (!selectedSpec) return;
     trackEvent("add_to_cart", { productId: product.id });
-    addItem({
-      skuId: selectedSpec.id,
-      productId: product.id,
-      name: product.name,
-      specName: selectedSpec.name,
-      priceAfterCents: selectedSpec.priceAfterCents,
-      image: product.images[0],
-    });
+    if (isLoggedIn) {
+      try {
+        await api.post("/cart/items", { skuId: selectedSpec.id, qty: 1 });
+        queryClient.invalidateQueries({ queryKey: ["cart"] });
+      } catch (err) {
+        setAddError(err instanceof ApiError ? err.message : (i18n.language === "zh-HK" ? "加入購物車失敗" : "Failed to add to cart"));
+        return;
+      }
+    } else {
+      addItem({
+        skuId: selectedSpec.id,
+        productId: product.id,
+        name: product.name,
+        specName: selectedSpec.name,
+        priceAfterCents: selectedSpec.priceAfterCents,
+        image: product.images[0],
+      });
+    }
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   };
@@ -190,6 +209,8 @@ export default function ProductDetailPage() {
         <p className="font-mono text-xs text-muted-foreground">
           {i18n.language === "zh-HK" ? "庫存" : "In stock"}: {selectedSpec?.available ?? 0}
         </p>
+
+        {addError && <p className="text-sm text-chili bg-chili/10 rounded px-3 py-2">{addError}</p>}
 
         <Button size="lg" className="w-full" disabled={!selectedSpec || selectedSpec.available === 0} onClick={handleAddToCart}>
           {added

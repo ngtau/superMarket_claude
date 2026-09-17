@@ -8,14 +8,28 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { useCategories } from "@/hooks/useCategories";
 import { useCartStore } from "@/store/cart-store";
 import { useCustomerAuthStore } from "@/store/customer-auth-store";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api-client";
 
 /** 招牌式导航：墨青底+黄铜描边，呼应香港街铺招牌的视觉语言 */
 export function Header() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { data: categories } = useCategories();
-  const totalQty = useCartStore((s) => s.totalQty());
   const customer = useCustomerAuthStore((s) => s.customer);
+  const isLoggedIn = useCustomerAuthStore((s) => !!s.accessToken);
+  const localQty = useCartStore((s) => s.totalQty());
+  /**
+   * 角标数量必须取真值：登录后购物车在服务端（本地 store 只是游客态暂存），
+   * 若继续读本地 store，加购成功后角标不动、甚至始终为 0。
+   * 复用 ["cart"] 这个 queryKey，加购/改数量时 invalidate 会连带刷新角标。
+   */
+  const { data: serverCart } = useQuery({
+    queryKey: ["cart"],
+    queryFn: () => api.get<{ qty: number }[]>("/cart"),
+    enabled: isLoggedIn,
+  });
+  const totalQty = isLoggedIn ? (serverCart?.reduce((s, i) => s + i.qty, 0) ?? 0) : localQty;
   const [keyword, setKeyword] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 

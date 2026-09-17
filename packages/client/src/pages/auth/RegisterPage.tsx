@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api, ApiError } from "@/lib/api-client";
 import { useCustomerAuthStore } from "@/store/customer-auth-store";
+import { useCartStore } from "@/store/cart-store";
 import { trackEvent } from "@/hooks/useTracking";
 
 export default function RegisterPage() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   const setSession = useCustomerAuthStore((s) => s.setSession);
+  const localCartItems = useCartStore((s) => s.items);
+  const clearLocalCart = useCartStore((s) => s.clear);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,6 +32,12 @@ export default function RegisterPage() {
       const { accessToken, refreshToken } = await api.post<{ accessToken: string; refreshToken: string }>("/auth/register", { email, password });
       setSession(accessToken, refreshToken, { id: "", email, locale: i18n.language });
       trackEvent("register");
+
+      // 与登录同款处理：把游客态本地购物车合并到服务端账号，否则注册前加购的商品会凭空消失
+      if (localCartItems.length > 0) {
+        await api.post("/cart/merge", { items: localCartItems.map((i) => ({ skuId: i.skuId, qty: i.qty })) }).catch(() => {});
+        clearLocalCart();
+      }
       navigate("/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : (i18n.language === "zh-HK" ? "註冊失敗" : "Registration failed"));

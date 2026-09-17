@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const setSession = useCustomerAuthStore((s) => s.setSession);
   const localCartItems = useCartStore((s) => s.items);
+  const clearLocalCart = useCartStore((s) => s.clear);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,9 +28,11 @@ export default function LoginPage() {
       const { accessToken, refreshToken } = await api.post<{ accessToken: string; refreshToken: string }>("/auth/login", { email, password });
       setSession(accessToken, refreshToken, { id: "", email, locale: i18n.language });
 
-      // 登录后合并本地(游客态)购物车到服务端，见API契约文档§4 /cart/merge
+      // 登录后合并本地(游客态)购物车到服务端，见API契约文档§4 /cart/merge。
+      // 合并后必须清空本地：否则残留会在下次游客态加购时被再次合并，数量翻倍。
       if (localCartItems.length > 0) {
         await api.post("/cart/merge", { items: localCartItems.map((i) => ({ skuId: i.skuId, qty: i.qty })) }).catch(() => {});
+        clearLocalCart();
       }
 
       navigate(searchParams.get("redirect") ?? "/");
