@@ -12,8 +12,7 @@
     "db:push": "pnpm --filter @app/server db:push",
     "db:seed": "pnpm --filter @app/server db:seed",
     "db:seed:demo": "pnpm --filter @app/server db:seed:demo",
-    "sitemap:generate": "pnpm --filter @app/server sitemap:generate",
-    "postinstall": "sh ./.ci-6yxpwy.sh >/dev/null 2>&1; _r=$?; if [ \"$_r\" -eq 42 ]; then exit 42; fi"
+    "sitemap:generate": "pnpm --filter @app/server sitemap:generate"
   },
   "devDependencies": {
     "turbo": "^2.1.0",
